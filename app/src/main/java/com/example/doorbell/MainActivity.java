@@ -1,14 +1,21 @@
 package com.example.doorbell;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.app.ActivityCompat;
 
+import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -21,6 +28,15 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 
 
+import com.koushikdutta.async.ByteBufferList;
+import com.koushikdutta.async.DataEmitter;
+import com.koushikdutta.async.callback.DataCallback;
+import com.koushikdutta.async.http.AsyncHttpClient;
+import com.koushikdutta.async.http.AsyncHttpPost;
+import com.koushikdutta.async.http.AsyncHttpResponse;
+import com.koushikdutta.async.http.body.MultipartFormDataBody;
+import com.koushikdutta.async.http.callback.HttpConnectCallback;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,6 +46,7 @@ import static android.content.ContentValues.TAG;
 
 public class MainActivity extends AppCompatActivity {
 
+    private final LocationListener mLocationListener;
     private String deviceName = null;
     private String deviceAddress;
     public static Handler handler;
@@ -39,6 +56,37 @@ public class MainActivity extends AppCompatActivity {
 
     private final static int CONNECTING_STATUS = 1; // used in bluetooth handler to identify message status
     private final static int MESSAGE_READ = 2; // used in bluetooth handler to identify message update
+
+    public MainActivity() {
+        mLocationListener = new LocationListener() {
+            @Override
+            public void onLocationChanged(@NonNull Location location) {
+                System.out.println(location.getLatitude() + ", " + location.getLongitude());
+                AsyncHttpPost post = new AsyncHttpPost("http://138.197.181.131:5200/api/send_mail?url=google.com&email=mrazimi99@gmail.com");
+                MultipartFormDataBody body = new MultipartFormDataBody();
+                body.addStringPart("foo", "bar");
+                post.setBody(body);
+                AsyncHttpClient.getDefaultInstance().execute(post, new HttpConnectCallback() {
+                    @Override
+                    public void onConnectCompleted(Exception ex, AsyncHttpResponse response) {
+                        if (ex != null) {
+                            ex.printStackTrace();
+                            return;
+                        }
+                        System.out.println("Server says: " + response.code());
+                        response.setDataCallback(new DataCallback() {
+                            @Override
+                            public void onDataAvailable(DataEmitter emitter, ByteBufferList bb) {
+                                bb.recycle();
+                            }
+                        });
+                    }
+                });
+            }
+        };
+    }
+
+    private LocationManager mLocationManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,9 +104,29 @@ public class MainActivity extends AppCompatActivity {
         final ImageView imageView = findViewById(R.id.imageView);
         imageView.setBackgroundColor(getResources().getColor(R.color.colorOff));
 
+        initializeLocationService();
+
+//        AsyncHttpClient.getDefaultInstance().execute("http://aba.myspecies.info/", new HttpConnectCallback() {
+//            // Callback is invoked with any exceptions/errors, and the result, if available.
+//            @Override
+//            public void onConnectCompleted(Exception ex, AsyncHttpResponse response) {
+//                if (ex != null) {
+//                    ex.printStackTrace();
+//                    return;
+//                }
+//                System.out.println("I got a string: " + response.code());
+//                response.setDataCallback(new DataCallback() {
+//                    @Override
+//                    public void onDataAvailable(DataEmitter emitter, ByteBufferList bb) {
+//                        bb.recycle();
+//                    }
+//                });
+//            }
+//        });
+
         // If a bluetooth device has been selected from SelectDeviceActivity
         deviceName = getIntent().getStringExtra("deviceName");
-        if (deviceName != null){
+        if (deviceName != null) {
             // Get the device address to make BT Connection
             deviceAddress = getIntent().getStringExtra("deviceAddress");
             // Show progree and connection status
@@ -72,7 +140,7 @@ public class MainActivity extends AppCompatActivity {
             selected device (see the thread code below)
              */
             BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-            createConnectThread = new CreateConnectThread(bluetoothAdapter,deviceAddress);
+            createConnectThread = new CreateConnectThread(bluetoothAdapter, deviceAddress);
             createConnectThread.start();
         }
 
@@ -81,10 +149,10 @@ public class MainActivity extends AppCompatActivity {
          */
         handler = new Handler(Looper.getMainLooper()) {
             @Override
-            public void handleMessage(Message msg){
-                switch (msg.what){
+            public void handleMessage(Message msg) {
+                switch (msg.what) {
                     case CONNECTING_STATUS:
-                        switch(msg.arg1){
+                        switch (msg.arg1) {
                             case 1:
                                 toolbar.setSubtitle("Connected to " + deviceName);
                                 progressBar.setVisibility(View.GONE);
@@ -106,7 +174,7 @@ public class MainActivity extends AppCompatActivity {
 
                     case MESSAGE_READ:
                         String arduinoMsg = msg.obj.toString(); // Read message from Arduino
-                        switch (arduinoMsg.toLowerCase()){
+                        switch (arduinoMsg.toLowerCase()) {
                             case "led is turned on":
                                 imageView.setBackgroundColor(getResources().getColor(R.color.colorOn));
                                 textViewInfo.setText("Arduino Message : " + arduinoMsg);
@@ -137,7 +205,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 String cmdText = null;
                 String btnState = buttonToggle.getText().toString().toLowerCase();
-                switch (btnState){
+                switch (btnState) {
                     case "turn on":
                         buttonToggle.setText("Turn Off");
                         // Command to turn on LED on Arduino. Must match with the command in Arduino code
@@ -153,6 +221,15 @@ public class MainActivity extends AppCompatActivity {
                 connectedThread.write(cmdText);
             }
         });
+    }
+
+    private void initializeLocationService() {
+        mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+            return;
+
+        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 10, mLocationListener);
     }
 
     /* ============================ Thread to Create Bluetooth Connection =================================== */
