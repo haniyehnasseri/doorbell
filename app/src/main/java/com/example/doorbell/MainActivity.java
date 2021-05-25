@@ -33,8 +33,10 @@ import com.koushikdutta.async.DataEmitter;
 import com.koushikdutta.async.callback.DataCallback;
 import com.koushikdutta.async.http.AsyncHttpClient;
 import com.koushikdutta.async.http.AsyncHttpPost;
+import com.koushikdutta.async.http.AsyncHttpPut;
 import com.koushikdutta.async.http.AsyncHttpResponse;
 import com.koushikdutta.async.http.body.MultipartFormDataBody;
+import com.koushikdutta.async.http.body.StringBody;
 import com.koushikdutta.async.http.callback.HttpConnectCallback;
 
 import java.io.IOException;
@@ -62,28 +64,32 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onLocationChanged(@NonNull Location location) {
                 System.out.println(location.getLatitude() + ", " + location.getLongitude());
-                AsyncHttpPost post = new AsyncHttpPost("http://138.197.181.131:5200/api/send_mail?url=google.com&email=mrazimi99@gmail.com");
-                MultipartFormDataBody body = new MultipartFormDataBody();
-                body.addStringPart("foo", "bar");
-                post.setBody(body);
-                AsyncHttpClient.getDefaultInstance().execute(post, new HttpConnectCallback() {
+                storeDataOnServer("x", location.getLatitude());
+                storeDataOnServer("y", location.getLongitude());
+            }
+        };
+    }
+
+    private void storeDataOnServer(String key, double value) {
+        AsyncHttpPut put = new AsyncHttpPut("http://api.kvstore.io/collections/new_collection/items/" + key);
+        put.addHeader("kvstoreio_api_key", "64daf7295b57e3dd7762ecd7792327b894aed6317bd1e8eb1a888f7f65399f1b");
+        put.setBody(new StringBody(String.valueOf(value)));
+        AsyncHttpClient.getDefaultInstance().execute(put, new HttpConnectCallback() {
+            @Override
+            public void onConnectCompleted(Exception ex, AsyncHttpResponse response) {
+                if (ex != null) {
+                    ex.printStackTrace();
+                    return;
+                }
+                System.out.println("Server says: " + response.code());
+                response.setDataCallback(new DataCallback() {
                     @Override
-                    public void onConnectCompleted(Exception ex, AsyncHttpResponse response) {
-                        if (ex != null) {
-                            ex.printStackTrace();
-                            return;
-                        }
-                        System.out.println("Server says: " + response.code());
-                        response.setDataCallback(new DataCallback() {
-                            @Override
-                            public void onDataAvailable(DataEmitter emitter, ByteBufferList bb) {
-                                bb.recycle();
-                            }
-                        });
+                    public void onDataAvailable(DataEmitter emitter, ByteBufferList bb) {
+                        bb.recycle();
                     }
                 });
             }
-        };
+        });
     }
 
     private LocationManager mLocationManager;
@@ -105,24 +111,6 @@ public class MainActivity extends AppCompatActivity {
         imageView.setBackgroundColor(getResources().getColor(R.color.colorOff));
 
         initializeLocationService();
-
-//        AsyncHttpClient.getDefaultInstance().execute("http://aba.myspecies.info/", new HttpConnectCallback() {
-//            // Callback is invoked with any exceptions/errors, and the result, if available.
-//            @Override
-//            public void onConnectCompleted(Exception ex, AsyncHttpResponse response) {
-//                if (ex != null) {
-//                    ex.printStackTrace();
-//                    return;
-//                }
-//                System.out.println("I got a string: " + response.code());
-//                response.setDataCallback(new DataCallback() {
-//                    @Override
-//                    public void onDataAvailable(DataEmitter emitter, ByteBufferList bb) {
-//                        bb.recycle();
-//                    }
-//                });
-//            }
-//        });
 
         // If a bluetooth device has been selected from SelectDeviceActivity
         deviceName = getIntent().getStringExtra("deviceName");
