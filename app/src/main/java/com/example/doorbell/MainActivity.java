@@ -1,6 +1,7 @@
 package com.example.doorbell;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -10,16 +11,19 @@ import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -32,10 +36,8 @@ import com.koushikdutta.async.ByteBufferList;
 import com.koushikdutta.async.DataEmitter;
 import com.koushikdutta.async.callback.DataCallback;
 import com.koushikdutta.async.http.AsyncHttpClient;
-import com.koushikdutta.async.http.AsyncHttpPost;
 import com.koushikdutta.async.http.AsyncHttpPut;
 import com.koushikdutta.async.http.AsyncHttpResponse;
-import com.koushikdutta.async.http.body.MultipartFormDataBody;
 import com.koushikdutta.async.http.body.StringBody;
 import com.koushikdutta.async.http.callback.HttpConnectCallback;
 
@@ -49,6 +51,7 @@ import static android.content.ContentValues.TAG;
 public class MainActivity extends AppCompatActivity {
 
     private final LocationListener mLocationListener;
+    private LocationManager mLocationManager;
     private String deviceName = null;
     private String deviceAddress;
     public static Handler handler;
@@ -67,7 +70,33 @@ public class MainActivity extends AppCompatActivity {
                 storeDataOnServer("x", location.getLatitude());
                 storeDataOnServer("y", location.getLongitude());
             }
+
+            @Override
+            public void onProviderEnabled(@NonNull String provider) {
+            }
+
+            @Override
+            public void onProviderDisabled(@NonNull String provider) {
+                tryEnableLocation();
+            }
         };
+    }
+
+    private void tryEnableLocation() {
+        if (!mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            // Notify user
+            final Context context = this;
+            new AlertDialog.Builder(this)
+                    .setMessage("Your location service is disabled; Do you want to enable it now?")
+                    .setPositiveButton("Enable", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface paramDialogInterface, int paramInt) {
+                            context.startActivity(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+                        }
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        }
     }
 
     private void storeDataOnServer(String key, double value) {
@@ -92,8 +121,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private LocationManager mLocationManager;
-
+    @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -211,11 +239,20 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.M)
     private void initializeLocationService() {
         mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{
+                            android.Manifest.permission.ACCESS_FINE_LOCATION}, 123);
+        }
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return;
+        }
+
+        tryEnableLocation();
 
         mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 10, mLocationListener);
     }
