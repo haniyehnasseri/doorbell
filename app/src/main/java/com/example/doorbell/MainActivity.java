@@ -44,6 +44,7 @@ import com.koushikdutta.async.http.callback.HttpConnectCallback;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Method;
 import java.util.UUID;
 
 import static android.content.ContentValues.TAG;
@@ -156,6 +157,7 @@ public class MainActivity extends AppCompatActivity {
             selected device (see the thread code below)
              */
             BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+
             createConnectThread = new CreateConnectThread(bluetoothAdapter, deviceAddress);
             createConnectThread.start();
         }
@@ -300,15 +302,28 @@ public class MainActivity extends AppCompatActivity {
                 Log.e("Status", "Device connected");
                 handler.obtainMessage(CONNECTING_STATUS, 1, -1).sendToTarget();
             } catch (IOException connectException) {
-                // Unable to connect; close the socket and return.
                 try {
-                    mmSocket.close();
-                    Log.e("Status", "Cannot connect to device");
-                    handler.obtainMessage(CONNECTING_STATUS, -1, -1).sendToTarget();
-                } catch (IOException closeException) {
-                    Log.e(TAG, "Could not close the client socket", closeException);
+                    Class<?> clazz = mmSocket.getRemoteDevice().getClass();
+                    Class<?>[] paramTypes = new Class<?>[] {Integer.TYPE};
+                    Method m = clazz.getMethod("createRfcommSocket", paramTypes);
+                    Object[] params = new Object[] {Integer.valueOf(1)};
+                    BluetoothSocket bluetoothSocket = (BluetoothSocket) m.invoke(mmSocket.getRemoteDevice(), params);
+                    Thread.sleep(500);
+                    bluetoothSocket.connect();
+                    Log.e("Status", "Device connected");
+                    handler.obtainMessage(CONNECTING_STATUS, 1, -1).sendToTarget();
+                } catch (Exception e) {
+                    // Unable to connect; close the socket and return.
+                    try {
+                        mmSocket.close();
+                        Log.e("Status", "Cannot connect to device");
+                        handler.obtainMessage(CONNECTING_STATUS, -1, -1).sendToTarget();
+                    } catch (IOException closeException) {
+                        Log.e(TAG, "Could not close the client socket", closeException);
+                    }
+                    return;
                 }
-                return;
+
             }
 
             // The connection attempt succeeded. Perform work associated with
