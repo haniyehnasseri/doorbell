@@ -302,29 +302,15 @@ public class MainActivity extends AppCompatActivity {
                 Log.e("Status", "Device connected");
                 handler.obtainMessage(CONNECTING_STATUS, 1, -1).sendToTarget();
             } catch (IOException connectException) {
-//                try {
-//                    Class<?> clazz = mmSocket.getRemoteDevice().getClass();
-//                    Class<?>[] paramTypes = new Class<?>[] {Integer.TYPE};
-//                    Method m = clazz.getMethod("createRfcommSocket", paramTypes);
-//                    Object[] params = new Object[] {Integer.valueOf(1)};
-//                    BluetoothSocket bluetoothSocket = (BluetoothSocket) m.invoke(mmSocket.getRemoteDevice(), params);
-//                    Thread.sleep(500);
-//                    mmSocket = bluetoothSocket;
-//                    mmSocket.connect();
-//                    Log.e("Status", "Device connected");
-//                    handler.obtainMessage(CONNECTING_STATUS, 1, -1).sendToTarget();
-//                } catch (Exception e) {
-                    // Unable to connect; close the socket and return.
-                    try {
-                        mmSocket.close();
-                        Log.e("Status", "Cannot connect to device");
-                        handler.obtainMessage(CONNECTING_STATUS, -1, -1).sendToTarget();
-                    } catch (IOException closeException) {
-                        Log.e(TAG, "Could not close the client socket", closeException);
-                    }
-                    return;
-//                }
-
+                // Unable to connect; close the socket and return.
+                try {
+                    mmSocket.close();
+                    Log.e("Status", "Cannot connect to device");
+                    handler.obtainMessage(CONNECTING_STATUS, -1, -1).sendToTarget();
+                } catch (IOException closeException) {
+                    Log.e(TAG, "Could not close the client socket", closeException);
+                }
+                return;
             }
 
             // The connection attempt succeeded. Perform work associated with
