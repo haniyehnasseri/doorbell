@@ -22,21 +22,6 @@
         app:title="Bluetooth Connection"
         app:titleTextColor="@android:color/background_light" />
 
-    <ImageView
-        android:id="@+id/imageView"
-        android:layout_width="200dp"
-        android:layout_height="300dp"
-        android:layout_marginTop="24dp"
-        android:background="@color/colorOff"
-        android:contentDescription="Visual LED"
-        android:scaleType="centerCrop"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/toolbar"
-        app:srcCompat="@drawable/ic_bulb_light"
-        tools:ignore="VectorDrawableCompat" />
-
     <Button
         android:id="@+id/buttonConnect"
         style="@style/Widget.AppCompat.Button.Borderless"
@@ -48,43 +33,35 @@
         app:layout_constraintEnd_toEndOf="@+id/toolbar"
         app:layout_constraintTop_toTopOf="@+id/toolbar" />
 
+    <EditText
+        android:id="@+id/message"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:layout_marginTop="44dp"
+        android:layout_marginEnd="32dp"
+        android:ems="10"
+        android:inputType="textPersonName"
+
+        android:hint="Enter your message!"
+        app:layout_constraintEnd_toStartOf="@+id/buttonToggle"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/toolbar" />
+
     <Button
         android:id="@+id/buttonToggle"
         style="@style/Widget.AppCompat.Button.Colored"
-        android:layout_width="200dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="400dp"
-        android:text="Turn On"
-        android:textSize="24sp"
+        android:layout_width="117dp"
+        android:layout_height="43dp"
+        android:layout_marginTop="48dp"
+        android:layout_marginEnd="28dp"
+        android:text="send"
+        android:textSize="14sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <ProgressBar
-        android:id="@+id/progressBar"
-        style="?android:attr/progressBarStyle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <TextView
-        android:id="@+id/textViewInfo"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginEnd="16dp"
-        android:textAlignment="center"
-        android:textStyle="italic"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/buttonToggle" />
+        app:layout_constraintStart_toEndOf="@+id/message"
+        app:layout_constraintTop_toBottomOf="@+id/toolbar" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

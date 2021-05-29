@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">doorbell</string>
+    <string name="send_message">Enter your message here!</string>
 </resources>

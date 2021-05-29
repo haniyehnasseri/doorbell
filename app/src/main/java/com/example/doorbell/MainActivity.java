@@ -27,11 +27,15 @@ import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
 
+import com.androidnetworking.AndroidNetworking;
+import com.androidnetworking.error.ANError;
+import com.androidnetworking.interfaces.JSONArrayRequestListener;
 import com.koushikdutta.async.ByteBufferList;
 import com.koushikdutta.async.DataEmitter;
 import com.koushikdutta.async.callback.DataCallback;
@@ -41,10 +45,14 @@ import com.koushikdutta.async.http.AsyncHttpResponse;
 import com.koushikdutta.async.http.body.StringBody;
 import com.koushikdutta.async.http.callback.HttpConnectCallback;
 
+import org.json.JSONArray;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 
 import static android.content.ContentValues.TAG;
@@ -52,13 +60,18 @@ import static android.content.ContentValues.TAG;
 public class MainActivity extends AppCompatActivity {
 
     private final LocationListener mLocationListener;
-    private LocationManager mLocationManager;
+    public LocationManager mLocationManager;
+    private Handler mHandler = new Handler();
+    private Timer mTimer = null;
+    public final long notify_interval = 5000;
+
     private String deviceName = null;
     private String deviceAddress;
     public static Handler handler;
     public static BluetoothSocket mmSocket;
     public static ConnectedThread connectedThread;
     public static CreateConnectThread createConnectThread;
+
 
     private final static int CONNECTING_STATUS = 1; // used in bluetooth handler to identify message status
     private final static int MESSAGE_READ = 2; // used in bluetooth handler to identify message update
@@ -68,8 +81,6 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onLocationChanged(@NonNull Location location) {
                 System.out.println(location.getLatitude() + ", " + location.getLongitude());
-                storeDataOnServer("x", location.getLatitude());
-                storeDataOnServer("y", location.getLongitude());
             }
 
             @Override
@@ -79,6 +90,11 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onProviderDisabled(@NonNull String provider) {
                 tryEnableLocation();
+            }
+
+            @Override
+            public void onStatusChanged(String provider, int status, Bundle extras) {
+
             }
         };
     }
@@ -100,26 +116,18 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void storeDataOnServer(String key, double value) {
-        AsyncHttpPut put = new AsyncHttpPut("http://api.kvstore.io/collections/new_collection/items/" + key);
-        put.addHeader("kvstoreio_api_key", "64daf7295b57e3dd7762ecd7792327b894aed6317bd1e8eb1a888f7f65399f1b");
-        put.setBody(new StringBody(String.valueOf(value)));
-        AsyncHttpClient.getDefaultInstance().execute(put, new HttpConnectCallback() {
-            @Override
-            public void onConnectCompleted(Exception ex, AsyncHttpResponse response) {
-                if (ex != null) {
-                    ex.printStackTrace();
-                    return;
-                }
-                System.out.println("Server says: " + response.code());
-                response.setDataCallback(new DataCallback() {
+    private void storeDataOnServer(double lat, double lng) {
+
+        AndroidNetworking.get("https://utdataserver.000webhostapp.com/index.php?data=" + String.valueOf(lat) + " / " + String.valueOf(lng))
+                .build()
+                .getAsJSONArray(new JSONArrayRequestListener() {
                     @Override
-                    public void onDataAvailable(DataEmitter emitter, ByteBufferList bb) {
-                        bb.recycle();
+                    public void onResponse(JSONArray response) {
+                    }
+                    @Override
+                    public void onError(ANError anError) {
                     }
                 });
-            }
-        });
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
@@ -128,18 +136,41 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Api Access
+        AndroidNetworking.initialize(getApplicationContext());
+
         // UI Initialization
         final Button buttonConnect = findViewById(R.id.buttonConnect);
         final Toolbar toolbar = findViewById(R.id.toolbar);
-        final ProgressBar progressBar = findViewById(R.id.progressBar);
-        progressBar.setVisibility(View.GONE);
-        final TextView textViewInfo = findViewById(R.id.textViewInfo);
+       // final ProgressBar progressBar = findViewById(R.id.progressBar);
+       // progressBar.setVisibility(View.GONE);
+       // final TextView textViewInfo = findViewById(R.id.textViewInfo);
         final Button buttonToggle = findViewById(R.id.buttonToggle);
-        buttonToggle.setEnabled(false);
-        final ImageView imageView = findViewById(R.id.imageView);
-        imageView.setBackgroundColor(getResources().getColor(R.color.colorOff));
 
+        //buttonToggle.setEnabled(false);
+       // final ImageView imageView = findViewById(R.id.imageView);
+        //imageView.setBackgroundColor(getResources().getColor(R.color.colorOff));
+
+        // initialize Location Service
         initializeLocationService();
+
+        ///
+        class TimerTaskToGetLocation extends TimerTask {
+            @Override
+            public void run() {
+
+                mHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        getlocation();
+                    }
+                });
+
+            }
+        }
+        mTimer = new Timer();
+        mTimer.schedule(new TimerTaskToGetLocation(), 0, notify_interval);
+        ///
 
         // If a bluetooth device has been selected from SelectDeviceActivity
         deviceName = getIntent().getStringExtra("deviceName");
@@ -148,8 +179,8 @@ public class MainActivity extends AppCompatActivity {
             deviceAddress = getIntent().getStringExtra("deviceAddress");
             // Show progree and connection status
             toolbar.setSubtitle("Connecting to " + deviceName + "...");
-            progressBar.setVisibility(View.VISIBLE);
-            buttonConnect.setEnabled(false);
+            //progressBar.setVisibility(View.VISIBLE);
+             buttonConnect.setEnabled(false);
 
             /*
             This is the most important piece of code. When "deviceName" is found
@@ -165,7 +196,7 @@ public class MainActivity extends AppCompatActivity {
         /*
         Second most important piece of Code. GUI Handler
          */
-        handler = new Handler(Looper.getMainLooper()) {
+       handler = new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(Message msg) {
                 switch (msg.what) {
@@ -173,19 +204,19 @@ public class MainActivity extends AppCompatActivity {
                         switch (msg.arg1) {
                             case 1:
                                 toolbar.setSubtitle("Connected to " + deviceName);
-                                progressBar.setVisibility(View.GONE);
+                                //Bar.setVisibility(View.GONE);
                                 buttonConnect.setEnabled(true);
-                                buttonToggle.setEnabled(true);
+                                //buttonToggle.setEnabled(true);
                                 break;
                             case -1:
                                 toolbar.setSubtitle("Device fails to connect");
-                                progressBar.setVisibility(View.GONE);
+                               // progressBar.setVisibility(View.GONE);
                                 buttonConnect.setEnabled(true);
                                 break;
                             case -2:
                                 toolbar.setSubtitle("mmSocket is null " + deviceName + "//" + deviceAddress);
-                                progressBar.setVisibility(View.GONE);
-                                buttonConnect.setEnabled(true);
+                               // progressBar.setVisibility(View.GONE);
+                                 buttonConnect.setEnabled(true);
                                 break;
                         }
                         break;
@@ -194,12 +225,12 @@ public class MainActivity extends AppCompatActivity {
                         String arduinoMsg = msg.obj.toString(); // Read message from Arduino
                         switch (arduinoMsg.toLowerCase()) {
                             case "led is turned on":
-                                imageView.setBackgroundColor(getResources().getColor(R.color.colorOn));
-                                textViewInfo.setText("Arduino Message : " + arduinoMsg);
+                               // imageView.setBackgroundColor(getResources().getColor(R.color.colorOn));
+                               // textViewInfo.setText("Arduino Message : " + arduinoMsg);
                                 break;
                             case "led is turned off":
-                                imageView.setBackgroundColor(getResources().getColor(R.color.colorOff));
-                                textViewInfo.setText("Arduino Message : " + arduinoMsg);
+                                //imageView.setBackgroundColor(getResources().getColor(R.color.colorOff));
+                                //textViewInfo.setText("Arduino Message : " + arduinoMsg);
                                 break;
                         }
                         break;
@@ -212,6 +243,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 // Move to adapter list
+                System.out.print("bconnect click");
                 Intent intent = new Intent(MainActivity.this, SelectDeviceActivity.class);
                 startActivity(intent);
             }
@@ -221,22 +253,14 @@ public class MainActivity extends AppCompatActivity {
         buttonToggle.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                String cmdText = null;
-                String btnState = buttonToggle.getText().toString().toLowerCase();
-                switch (btnState) {
-                    case "turn on":
-                        buttonToggle.setText("Turn Off");
-                        // Command to turn on LED on Arduino. Must match with the command in Arduino code
-                        cmdText = "<turn on>";
-                        break;
-                    case "turn off":
-                        buttonToggle.setText("Turn On");
-                        // Command to turn off LED on Arduino. Must match with the command in Arduino code
-                        cmdText = "<turn off>";
-                        break;
-                }
-                // Send command to Arduino board
-                connectedThread.write(cmdText);
+                System.out.print("button click");
+
+                String message = "no message";
+                EditText editText = (EditText) findViewById(R.id.message);
+                message = editText.getText().toString();
+                Log.e("button click",message);
+                //connectedThread.write(message);
+
             }
         });
     }
@@ -247,7 +271,7 @@ public class MainActivity extends AppCompatActivity {
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{
-                            android.Manifest.permission.ACCESS_FINE_LOCATION}, 123);
+                    android.Manifest.permission.ACCESS_FINE_LOCATION}, 123);
         }
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -256,7 +280,7 @@ public class MainActivity extends AppCompatActivity {
 
         tryEnableLocation();
 
-        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 10, mLocationListener);
+        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, (float) 0.2, mLocationListener);
     }
 
     /* ============================ Thread to Create Bluetooth Connection =================================== */
@@ -296,7 +320,7 @@ public class MainActivity extends AppCompatActivity {
                 // Connect to the remote device through the socket. This call blocks
                 // until it succeeds or throws an exception.
                 mmSocket.connect();
-                if(mmSocket == null){
+                if (mmSocket == null) {
                     handler.obtainMessage(CONNECTING_STATUS, -2, -1).sendToTarget();
                 }
                 Log.e("Status", "Device connected");
@@ -345,7 +369,8 @@ public class MainActivity extends AppCompatActivity {
             try {
                 tmpIn = socket.getInputStream();
                 tmpOut = socket.getOutputStream();
-            } catch (IOException e) { }
+            } catch (IOException e) {
+            }
 
             mmInStream = tmpIn;
             mmOutStream = tmpOut;
@@ -363,10 +388,10 @@ public class MainActivity extends AppCompatActivity {
                      */
                     buffer[bytes] = (byte) mmInStream.read();
                     String readMessage;
-                    if (buffer[bytes] == '\n'){
-                        readMessage = new String(buffer,0,bytes);
-                        Log.e("Arduino Message",readMessage);
-                        handler.obtainMessage(MESSAGE_READ,readMessage).sendToTarget();
+                    if (buffer[bytes] == '\n') {
+                        readMessage = new String(buffer, 0, bytes);
+                        Log.e("Arduino Message", readMessage);
+                        handler.obtainMessage(MESSAGE_READ, readMessage).sendToTarget();
                         bytes = 0;
                     } else {
                         bytes++;
@@ -384,7 +409,7 @@ public class MainActivity extends AppCompatActivity {
             try {
                 mmOutStream.write(bytes);
             } catch (IOException e) {
-                Log.e("Send Error","Unable to send message",e);
+                Log.e("Send Error", "Unable to send message", e);
             }
         }
 
@@ -392,7 +417,8 @@ public class MainActivity extends AppCompatActivity {
         public void cancel() {
             try {
                 mmSocket.close();
-            } catch (IOException e) { }
+            } catch (IOException e) {
+            }
         }
     }
 
@@ -400,7 +426,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onBackPressed() {
         // Terminate Bluetooth Connection and close app
-        if (createConnectThread != null){
+        if (createConnectThread != null) {
             createConnectThread.cancel();
         }
         Intent a = new Intent(Intent.ACTION_MAIN);
@@ -408,4 +434,29 @@ public class MainActivity extends AppCompatActivity {
         a.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(a);
     }
+
+    public void getlocation() {
+        if (mLocationManager != null) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                // TODO: Consider calling
+                //    ActivityCompat#requestPermissions
+                // here to request the missing permissions, and then overriding
+                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                //                                          int[] grantResults)
+                // to handle the case where the user grants the permission. See the documentation
+                // for ActivityCompat#requestPermissions for more details.
+                return;
+            }
+            Location location = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+            if (location != null) {
+                //Log.e("latitude", location.getLatitude() + "");
+                //Log.e("longitude", location.getLongitude() + "");
+                storeDataOnServer(location.getLatitude(), location.getLongitude());
+
+            }
+        }
+    }
+
+
+
 }
