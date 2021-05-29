@@ -243,7 +243,6 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 // Move to adapter list
-                System.out.print("bconnect click");
                 Intent intent = new Intent(MainActivity.this, SelectDeviceActivity.class);
                 startActivity(intent);
             }
@@ -253,13 +252,11 @@ public class MainActivity extends AppCompatActivity {
         buttonToggle.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                System.out.print("button click");
 
                 String message = "no message";
                 EditText editText = (EditText) findViewById(R.id.message);
                 message = editText.getText().toString();
-                Log.e("button click",message);
-                //connectedThread.write(message);
+                connectedThread.write(message);
 
             }
         });
@@ -280,7 +277,7 @@ public class MainActivity extends AppCompatActivity {
 
         tryEnableLocation();
 
-        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, (float) 0.2, mLocationListener);
+        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, (float) 1, mLocationListener);
     }
 
     /* ============================ Thread to Create Bluetooth Connection =================================== */
