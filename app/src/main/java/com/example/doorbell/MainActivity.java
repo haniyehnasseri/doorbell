@@ -223,16 +223,10 @@ public class MainActivity extends AppCompatActivity {
 
                     case MESSAGE_READ:
                         String arduinoMsg = msg.obj.toString(); // Read message from Arduino
-                        switch (arduinoMsg.toLowerCase()) {
-                            case "led is turned on":
-                               // imageView.setBackgroundColor(getResources().getColor(R.color.colorOn));
-                               // textViewInfo.setText("Arduino Message : " + arduinoMsg);
-                                break;
-                            case "led is turned off":
-                                //imageView.setBackgroundColor(getResources().getColor(R.color.colorOff));
-                                //textViewInfo.setText("Arduino Message : " + arduinoMsg);
-                                break;
-                        }
+
+                        showAlert(arduinoMsg);
+                        if(!arduinoMsg.isEmpty())
+                            connectedThread.write("bluetooth ack");
                         break;
                 }
             }
@@ -452,6 +446,25 @@ public class MainActivity extends AppCompatActivity {
 
             }
         }
+    }
+
+    public void showAlert(String message){
+        new AlertDialog.Builder(MainActivity.this)
+                .setTitle("New message From Doorbell ! ")
+                .setMessage("Someone Arrived")
+
+                // Specifying a listener allows you to take an action before dismissing the dialog.
+                // The dialog is automatically dismissed when a dialog button is clicked.
+                .setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        // Continue with delete operation
+                    }
+                })
+
+                // A null listener allows the button to dismiss the dialog and take no further action.
+                .setNegativeButton(android.R.string.no, null)
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .show();
     }
 
 
