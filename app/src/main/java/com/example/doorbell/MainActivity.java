@@ -15,6 +15,8 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -29,28 +31,24 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.ProgressBar;
-import android.widget.TextView;
 
 
 import com.androidnetworking.AndroidNetworking;
-import com.androidnetworking.error.ANError;
-import com.androidnetworking.interfaces.JSONArrayRequestListener;
 import com.koushikdutta.async.ByteBufferList;
 import com.koushikdutta.async.DataEmitter;
 import com.koushikdutta.async.callback.DataCallback;
 import com.koushikdutta.async.http.AsyncHttpClient;
+import com.koushikdutta.async.http.AsyncHttpGet;
 import com.koushikdutta.async.http.AsyncHttpPut;
 import com.koushikdutta.async.http.AsyncHttpResponse;
-import com.koushikdutta.async.http.body.StringBody;
 import com.koushikdutta.async.http.callback.HttpConnectCallback;
-
-import org.json.JSONArray;
+import com.nostra13.universalimageloader.core.ImageLoader;
+import com.nostra13.universalimageloader.core.ImageLoaderConfiguration;
+import com.nostra13.universalimageloader.core.listener.SimpleImageLoadingListener;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.Method;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -238,6 +236,11 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
+        ImageView imageView = findViewById(R.id.imageView);
+        ImageLoader imageLoader = ImageLoader.getInstance();
+        imageLoader.init(ImageLoaderConfiguration.createDefault(getApplicationContext()));
+        imageLoader.displayImage("http://103.215.221.170/image", imageView);
+
         // Select Bluetooth Device
         buttonConnect.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -257,7 +260,6 @@ public class MainActivity extends AppCompatActivity {
                 EditText editText = (EditText) findViewById(R.id.message);
                 message = editText.getText().toString();
                 connectedThread.write(message);
-
             }
         });
     }
