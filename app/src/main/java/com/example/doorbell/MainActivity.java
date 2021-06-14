@@ -117,17 +117,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void storeDataOnServer(double lat, double lng) {
-
-        AndroidNetworking.get("https://utdataserver.000webhostapp.com/index.php?data=" + String.valueOf(lat) + " / " + String.valueOf(lng))
-                .build()
-                .getAsJSONArray(new JSONArrayRequestListener() {
+        AsyncHttpPut put = new AsyncHttpPut("http://103.215.221.170/location?x=" + lat + "&y=" + lng);
+        AsyncHttpClient.getDefaultInstance().execute(put, new HttpConnectCallback() {
+            @Override
+            public void onConnectCompleted(Exception ex, AsyncHttpResponse response) {
+                if (ex != null) {
+                    ex.printStackTrace();
+                    return;
+                }
+                System.out.println("Server says: " + response.code());
+                response.setDataCallback(new DataCallback() {
                     @Override
-                    public void onResponse(JSONArray response) {
-                    }
-                    @Override
-                    public void onError(ANError anError) {
+                    public void onDataAvailable(DataEmitter emitter, ByteBufferList bb) {
+                        bb.recycle();
                     }
                 });
+            }
+        });
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
