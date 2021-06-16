@@ -15,8 +15,6 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -44,7 +42,6 @@ import com.koushikdutta.async.http.AsyncHttpResponse;
 import com.koushikdutta.async.http.callback.HttpConnectCallback;
 import com.nostra13.universalimageloader.core.ImageLoader;
 import com.nostra13.universalimageloader.core.ImageLoaderConfiguration;
-import com.nostra13.universalimageloader.core.listener.SimpleImageLoadingListener;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -59,6 +56,7 @@ import java.util.UUID;
 import static android.content.ContentValues.TAG;
 
 public class MainActivity extends AppCompatActivity {
+    private static String SERVER_ADDRESS = "http://103.215.221.170";
 
     private final LocationListener mLocationListener;
     public LocationManager mLocationManager;
@@ -127,7 +125,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void storeDataOnServer(double lat, double lng) {
-        AsyncHttpPut put = new AsyncHttpPut("http://103.215.221.170/location?x=" + lat + "&y=" + lng);
+        AsyncHttpPut put = new AsyncHttpPut(SERVER_ADDRESS + "/location?x=" + lat + "&y=" + lng);
         AsyncHttpClient.getDefaultInstance().execute(put, new HttpConnectCallback() {
             @Override
             public void onConnectCompleted(Exception ex, AsyncHttpResponse response) {
@@ -190,6 +188,15 @@ public class MainActivity extends AppCompatActivity {
 
         ///
         class TimerTaskToGetWifiData extends TimerTask {
+            boolean newImageExists = true;
+            ImageView imageView = findViewById(R.id.imageView);
+            ImageLoader imageLoader = ImageLoader.getInstance();
+
+            public TimerTaskToGetWifiData() {
+                imageLoader.init(ImageLoaderConfiguration.createDefault(getApplicationContext()));
+                imageLoader.displayImage(SERVER_ADDRESS + "/image", imageView);
+            }
+
             @Override
             public void run() {
                 wifiDataHandler.post(new Runnable() {
@@ -198,6 +205,45 @@ public class MainActivity extends AppCompatActivity {
                         getWifiData();
                         if(newWifiData)
                             showAlert(wifiData);
+
+                        checkNewImageExists();
+                        if (newImageExists) {
+                            unsetNewImageExists();
+                            imageLoader.displayImage(SERVER_ADDRESS + "/image", imageView);
+                        }
+                    }
+                });
+            }
+
+            private void unsetNewImageExists() {
+                newImageExists = false;
+                AsyncHttpPut put = new AsyncHttpPut(SERVER_ADDRESS + "/available?flag=false");
+                AsyncHttpClient.getDefaultInstance().execute(put, new HttpConnectCallback() {
+                    @Override
+                    public void onConnectCompleted(Exception ex, AsyncHttpResponse response) {
+                        if (ex != null) {
+                            ex.printStackTrace();
+                            return;
+                        }
+                        response.setDataCallback(new DataCallback() {
+                            @Override
+                            public void onDataAvailable(DataEmitter emitter, ByteBufferList bb) {
+                                bb.recycle();
+                            }
+                        });
+                    }
+                });
+            }
+
+            private void checkNewImageExists() {
+                AsyncHttpGet get = new AsyncHttpGet(SERVER_ADDRESS + "/available");
+                AsyncHttpClient.getDefaultInstance().executeString(get, new AsyncHttpClient.StringCallback() {
+                    @Override
+                    public void onCompleted(Exception e, AsyncHttpResponse source, String result) {
+                        if (result.equals("false") || result.equals("no") || result.equals("0"))
+                            newImageExists = false;
+                        else
+                            newImageExists = true;
                     }
                 });
             }
@@ -265,12 +311,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         };
-
-       // This should be a thread and check for new image
-        ImageView imageView = findViewById(R.id.imageView);
-        ImageLoader imageLoader = ImageLoader.getInstance();
-        imageLoader.init(ImageLoaderConfiguration.createDefault(getApplicationContext()));
-        imageLoader.displayImage("http://103.215.221.170/image", imageView);
 
         // Select Bluetooth Device
         buttonConnect.setOnClickListener(new View.OnClickListener() {
@@ -482,7 +522,6 @@ public class MainActivity extends AppCompatActivity {
                 //Log.e("latitude", location.getLatitude() + "");
                 //Log.e("longitude", location.getLongitude() + "");
                 storeDataOnServer(location.getLatitude(), location.getLongitude());
-
             }
         }
     }
@@ -507,9 +546,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    public void getWifiData(){
-
-        AsyncHttpGet get = new AsyncHttpGet("http://103.215.221.170/location");
+    public void getWifiData() {
+        AsyncHttpGet get = new AsyncHttpGet(SERVER_ADDRESS + "/location");
         AsyncHttpClient.getDefaultInstance().executeJSONObject(get, new AsyncHttpClient.JSONObjectCallback() {
             // Callback is invoked with any exceptions/errors, and the result, if available.
             @Override
