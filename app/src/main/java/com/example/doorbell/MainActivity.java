@@ -236,6 +236,7 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
+       // This should be a thread and check for new image
         ImageView imageView = findViewById(R.id.imageView);
         ImageLoader imageLoader = ImageLoader.getInstance();
         imageLoader.init(ImageLoaderConfiguration.createDefault(getApplicationContext()));
