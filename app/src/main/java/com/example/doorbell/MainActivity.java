@@ -46,6 +46,9 @@ import com.nostra13.universalimageloader.core.ImageLoader;
 import com.nostra13.universalimageloader.core.ImageLoaderConfiguration;
 import com.nostra13.universalimageloader.core.listener.SimpleImageLoadingListener;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -59,9 +62,14 @@ public class MainActivity extends AppCompatActivity {
 
     private final LocationListener mLocationListener;
     public LocationManager mLocationManager;
-    private Handler mHandler = new Handler();
-    private Timer mTimer = null;
-    public final long notify_interval = 5000;
+    private Handler locationHandler = new Handler();
+    private Timer locationTimer = null;
+    private Handler wifiDataHandler = new Handler();
+    private Timer wifiDataTimer = null;
+
+    public final long notify_interval = 12000;
+    public final long wifi_get_data_interval = 2000;
+
 
     private String deviceName = null;
     private String deviceAddress;
@@ -69,6 +77,10 @@ public class MainActivity extends AppCompatActivity {
     public static BluetoothSocket mmSocket;
     public static ConnectedThread connectedThread;
     public static CreateConnectThread createConnectThread;
+
+
+    public String wifiData = "";
+    public boolean newWifiData = false;
 
 
     private final static int CONNECTING_STATUS = 1; // used in bluetooth handler to identify message status
@@ -163,7 +175,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
 
-                mHandler.post(new Runnable() {
+                locationHandler.post(new Runnable() {
                     @Override
                     public void run() {
                         getlocation();
@@ -172,8 +184,26 @@ public class MainActivity extends AppCompatActivity {
 
             }
         }
-        mTimer = new Timer();
-        mTimer.schedule(new TimerTaskToGetLocation(), 0, notify_interval);
+        locationTimer = new Timer();
+        locationTimer.schedule(new TimerTaskToGetLocation(), 0, notify_interval);
+        ///
+
+        ///
+        class TimerTaskToGetWifiData extends TimerTask {
+            @Override
+            public void run() {
+                wifiDataHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        getWifiData();
+                        if(newWifiData)
+                            showAlert(wifiData);
+                    }
+                });
+            }
+        }
+        wifiDataTimer = new Timer();
+        wifiDataTimer.schedule(new TimerTaskToGetWifiData(), 0, wifi_get_data_interval);
         ///
 
         // If a bluetooth device has been selected from SelectDeviceActivity
@@ -460,7 +490,7 @@ public class MainActivity extends AppCompatActivity {
     public void showAlert(String message){
         new AlertDialog.Builder(MainActivity.this)
                 .setTitle("New message From Doorbell ! ")
-                .setMessage("Someone Arrived")
+                .setMessage(message)
 
                 // Specifying a listener allows you to take an action before dismissing the dialog.
                 // The dialog is automatically dismissed when a dialog button is clicked.
@@ -474,6 +504,35 @@ public class MainActivity extends AppCompatActivity {
                 .setNegativeButton(android.R.string.no, null)
                 .setIcon(android.R.drawable.ic_dialog_alert)
                 .show();
+    }
+
+
+    public void getWifiData(){
+
+        AsyncHttpGet get = new AsyncHttpGet("http://103.215.221.170/location");
+        AsyncHttpClient.getDefaultInstance().executeJSONObject(get, new AsyncHttpClient.JSONObjectCallback() {
+            // Callback is invoked with any exceptions/errors, and the result, if available.
+            @Override
+            public void onCompleted(Exception e, AsyncHttpResponse response, JSONObject result) {
+                if (e != null) {
+                    e.printStackTrace();
+                    return;
+                }
+                System.out.println("I got a json: " + result);
+                try {
+                    if(!result.get("x").toString().equals(wifiData)){
+                        wifiData = result.get("x").toString();
+                        newWifiData = true;
+                    }
+                    else{
+                        newWifiData = false;
+                    }
+
+                } catch (JSONException jsonException) {
+                    jsonException.printStackTrace();
+                }
+            }
+        });
     }
 
 
