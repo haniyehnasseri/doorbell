@@ -240,10 +240,12 @@ public class MainActivity extends AppCompatActivity {
                 AsyncHttpClient.getDefaultInstance().executeString(get, new AsyncHttpClient.StringCallback() {
                     @Override
                     public void onCompleted(Exception e, AsyncHttpResponse source, String result) {
-                        if (result.equals("false") || result.equals("no") || result.equals("0"))
-                            newImageExists = false;
-                        else
-                            newImageExists = true;
+                        if (source.code() == 200 && result != null) {
+                            if (result.equals("false") || result.equals("no") || result.equals("0"))
+                                newImageExists = false;
+                            else
+                                newImageExists = true;
+                        }
                     }
                 });
             }
@@ -545,7 +547,6 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
-
     public void getWifiData() {
         AsyncHttpGet get = new AsyncHttpGet(SERVER_ADDRESS + "/location");
         AsyncHttpClient.getDefaultInstance().executeJSONObject(get, new AsyncHttpClient.JSONObjectCallback() {
@@ -572,7 +573,4 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
-
-
-
 }
