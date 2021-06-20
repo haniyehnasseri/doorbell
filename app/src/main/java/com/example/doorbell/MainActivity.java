@@ -65,7 +65,7 @@ public class MainActivity extends AppCompatActivity {
     private Handler wifiDataHandler = new Handler();
     private Timer wifiDataTimer = null;
 
-    public final long notify_interval = 12000;
+    public final long notify_interval = 10000;
     public final long wifi_get_data_interval = 2000;
 
 
@@ -79,6 +79,10 @@ public class MainActivity extends AppCompatActivity {
 
     public String wifiData = "";
     public boolean newWifiData = false;
+
+    public Location lastLocation = null;
+
+    public Location boardLocation = new Location("board");
 
 
     private final static int CONNECTING_STATUS = 1; // used in bluetooth handler to identify message status
@@ -124,8 +128,16 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void storeDataOnServer(double lat, double lng) {
-        AsyncHttpPut put = new AsyncHttpPut(SERVER_ADDRESS + "/location?x=" + lat + "&y=" + lng);
+    private void storeDataOnServer() {
+        Log.e("INFORM", "store data func");
+        boolean close = false;
+        float distance = boardLocation.distanceTo(lastLocation);
+
+        if(distance <= 10.0){
+            close = true;
+        }
+
+        AsyncHttpPut put = new AsyncHttpPut(SERVER_ADDRESS + "/location?close=" + close);
         AsyncHttpClient.getDefaultInstance().execute(put, new HttpConnectCallback() {
             @Override
             public void onConnectCompleted(Exception ex, AsyncHttpResponse response) {
@@ -156,17 +168,13 @@ public class MainActivity extends AppCompatActivity {
         // UI Initialization
         final Button buttonConnect = findViewById(R.id.buttonConnect);
         final Toolbar toolbar = findViewById(R.id.toolbar);
-       // final ProgressBar progressBar = findViewById(R.id.progressBar);
-       // progressBar.setVisibility(View.GONE);
-       // final TextView textViewInfo = findViewById(R.id.textViewInfo);
         final Button buttonToggle = findViewById(R.id.buttonToggle);
 
-        //buttonToggle.setEnabled(false);
-       // final ImageView imageView = findViewById(R.id.imageView);
-        //imageView.setBackgroundColor(getResources().getColor(R.color.colorOff));
-
-        // initialize Location Service
         initializeLocationService();
+
+        boardLocation.setLatitude(35.724902);
+        boardLocation.setLongitude(51.387620);
+
 
         ///
         class TimerTaskToGetLocation extends TimerTask {
@@ -519,11 +527,25 @@ public class MainActivity extends AppCompatActivity {
                 // for ActivityCompat#requestPermissions for more details.
                 return;
             }
+            Log.e("INFORM", "get location");
+
             Location location = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-            if (location != null) {
-                //Log.e("latitude", location.getLatitude() + "");
-                //Log.e("longitude", location.getLongitude() + "");
-                storeDataOnServer(location.getLatitude(), location.getLongitude());
+            Log.e("INFORM", location + "--" + lastLocation);
+            if(lastLocation == null && location != null){
+                Log.e("INFORM", "here");
+                lastLocation = location;
+                storeDataOnServer();
+            }
+            else{
+                Log.e("INFORM", "here 1");
+                if (location != null && !(location.getLatitude() == lastLocation.getLatitude() &&
+                        location.getLongitude() == lastLocation.getLongitude())) {
+                    Log.e("INFORM", "here 2");
+                    lastLocation = location;
+                    //Log.e("latitude", location.getLatitude() + "");
+                    //Log.e("longitude", location.getLongitude() + "");
+                    storeDataOnServer();
+                }
             }
         }
     }
@@ -548,28 +570,25 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void getWifiData() {
-        AsyncHttpGet get = new AsyncHttpGet(SERVER_ADDRESS + "/location");
-        AsyncHttpClient.getDefaultInstance().executeJSONObject(get, new AsyncHttpClient.JSONObjectCallback() {
-            // Callback is invoked with any exceptions/errors, and the result, if available.
+        AsyncHttpGet get = new AsyncHttpGet(SERVER_ADDRESS + "/message");
+        AsyncHttpClient.getDefaultInstance().executeString(get, new AsyncHttpClient.StringCallback() {
             @Override
-            public void onCompleted(Exception e, AsyncHttpResponse response, JSONObject result) {
+            public void onCompleted(Exception e, AsyncHttpResponse source, String result) {
                 if (e != null) {
                     e.printStackTrace();
                     return;
                 }
-                System.out.println("I got a json: " + result);
-                try {
-                    if(!result.get("x").toString().equals(wifiData)){
-                        wifiData = result.get("x").toString();
+                System.out.println("I got a text: " + result);
+
+                    if(!result.equals(wifiData)){
+                        wifiData = result;
                         newWifiData = true;
                     }
                     else{
                         newWifiData = false;
                     }
 
-                } catch (JSONException jsonException) {
-                    jsonException.printStackTrace();
-                }
+
             }
         });
     }
