@@ -84,6 +84,8 @@ public class MainActivity extends AppCompatActivity {
 
     public Location boardLocation = new Location("board");
 
+    public boolean close;
+
 
     private final static int CONNECTING_STATUS = 1; // used in bluetooth handler to identify message status
     private final static int MESSAGE_READ = 2; // used in bluetooth handler to identify message update
@@ -128,9 +130,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void storeDataOnServer() {
+    private void storeDistanceOnServer() {
         Log.e("INFORM", "store data func");
-        boolean close = false;
+        close = false;
         float distance = boardLocation.distanceTo(lastLocation);
 
         if(distance <= 10.0){
@@ -196,6 +198,7 @@ public class MainActivity extends AppCompatActivity {
 
         ///
         class TimerTaskToGetWifiData extends TimerTask {
+
             boolean newImageExists = true;
             ImageView imageView = findViewById(R.id.imageView);
             ImageLoader imageLoader = ImageLoader.getInstance();
@@ -210,7 +213,7 @@ public class MainActivity extends AppCompatActivity {
                 wifiDataHandler.post(new Runnable() {
                     @Override
                     public void run() {
-                        getWifiData();
+                        getTime();
                         if(newWifiData)
                             showAlert(wifiData);
 
@@ -258,6 +261,7 @@ public class MainActivity extends AppCompatActivity {
                 });
             }
         }
+
         wifiDataTimer = new Timer();
         wifiDataTimer.schedule(new TimerTaskToGetWifiData(), 0, wifi_get_data_interval);
         ///
@@ -340,7 +344,13 @@ public class MainActivity extends AppCompatActivity {
                 String message = "no message";
                 EditText editText = (EditText) findViewById(R.id.message);
                 message = editText.getText().toString();
-                connectedThread.write(message);
+                if(close)
+                    connectedThread.write(message);
+                else{
+                    storeLCDWifi(message);
+                }
+
+
             }
         });
     }
@@ -534,7 +544,7 @@ public class MainActivity extends AppCompatActivity {
             if(lastLocation == null && location != null){
                 Log.e("INFORM", "here");
                 lastLocation = location;
-                storeDataOnServer();
+                storeDistanceOnServer();
             }
             else{
                 Log.e("INFORM", "here 1");
@@ -544,7 +554,7 @@ public class MainActivity extends AppCompatActivity {
                     lastLocation = location;
                     //Log.e("latitude", location.getLatitude() + "");
                     //Log.e("longitude", location.getLongitude() + "");
-                    storeDataOnServer();
+                    storeDistanceOnServer();
                 }
             }
         }
@@ -569,7 +579,8 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
-    public void getWifiData() {
+    public void getTime() {
+        // time
         AsyncHttpGet get = new AsyncHttpGet(SERVER_ADDRESS + "/message");
         AsyncHttpClient.getDefaultInstance().executeString(get, new AsyncHttpClient.StringCallback() {
             @Override
@@ -589,6 +600,26 @@ public class MainActivity extends AppCompatActivity {
                     }
 
 
+            }
+        });
+    }
+
+    public void storeLCDWifi(String lcdMessage){
+        AsyncHttpPut put = new AsyncHttpPut(SERVER_ADDRESS + "/message?text=" + lcdMessage);
+        AsyncHttpClient.getDefaultInstance().execute(put, new HttpConnectCallback() {
+            @Override
+            public void onConnectCompleted(Exception ex, AsyncHttpResponse response) {
+                if (ex != null) {
+                    ex.printStackTrace();
+                    return;
+                }
+                System.out.println("Server says: " + response.code());
+                response.setDataCallback(new DataCallback() {
+                    @Override
+                    public void onDataAvailable(DataEmitter emitter, ByteBufferList bb) {
+                        bb.recycle();
+                    }
+                });
             }
         });
     }
