@@ -15,6 +15,8 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -24,6 +26,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.provider.Settings;
+import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -49,6 +52,8 @@ import org.json.JSONObject;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
@@ -56,6 +61,7 @@ import java.util.UUID;
 import static android.content.ContentValues.TAG;
 
 public class MainActivity extends AppCompatActivity {
+
     private static String SERVER_ADDRESS = "http://103.215.221.170";
 
     private final LocationListener mLocationListener;
@@ -77,7 +83,7 @@ public class MainActivity extends AppCompatActivity {
     public static CreateConnectThread createConnectThread;
 
 
-    public String wifiData = "";
+    public String wifiImage = "";
     public boolean newWifiData = false;
 
     public Location lastLocation = null;
@@ -91,6 +97,7 @@ public class MainActivity extends AppCompatActivity {
     private final static int MESSAGE_READ = 2; // used in bluetooth handler to identify message update
 
     public MainActivity() {
+
         mLocationListener = new LocationListener() {
             @Override
             public void onLocationChanged(@NonNull Location location) {
@@ -111,6 +118,7 @@ public class MainActivity extends AppCompatActivity {
 
             }
         };
+
     }
 
     private void tryEnableLocation() {
@@ -199,28 +207,41 @@ public class MainActivity extends AppCompatActivity {
         ///
         class TimerTaskToGetWifiData extends TimerTask {
 
-            boolean newImageExists = true;
+            boolean newImageExists = false;
             ImageView imageView = findViewById(R.id.imageView);
-            ImageLoader imageLoader = ImageLoader.getInstance();
+            //ImageLoader imageLoader = ImageLoader.getInstance();
 
-            public TimerTaskToGetWifiData() {
+            /*public TimerTaskToGetWifiData() {
                 imageLoader.init(ImageLoaderConfiguration.createDefault(getApplicationContext()));
                 imageLoader.displayImage(SERVER_ADDRESS + "/image", imageView);
-            }
+            }*/
 
             @Override
             public void run() {
                 wifiDataHandler.post(new Runnable() {
                     @Override
                     public void run() {
-                        getTime();
-                        if(newWifiData)
-                            showAlert(wifiData);
+
 
                         checkNewImageExists();
+
                         if (newImageExists) {
-                            unsetNewImageExists();
-                            imageLoader.displayImage(SERVER_ADDRESS + "/image", imageView);
+                            //unsetNewImageExists();
+                            getImage();
+                            System.out.println("before : " + newImageExists);
+                            System.out.println(wifiImage);
+                            if(wifiImage.length() > 0){
+                                String currentDateandTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+                                showAlert("Wifi : Someone Arrived ! " + currentDateandTime );
+                                String base64String = wifiImage.substring(2);
+                                byte[] decodedString = Base64.decode(base64String, Base64.DEFAULT);
+                                Bitmap decodedByte = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
+                                imageView.setImageBitmap(decodedByte);
+                                unsetNewImageExists();
+                                System.out.println(wifiImage);
+                                System.out.println("after : " + newImageExists);
+                            }
+                            //imageLoader.displayImage(SERVER_ADDRESS + "/image", imageView);
                         }
                     }
                 });
@@ -228,6 +249,7 @@ public class MainActivity extends AppCompatActivity {
 
             private void unsetNewImageExists() {
                 newImageExists = false;
+                wifiImage = "";
                 AsyncHttpPut put = new AsyncHttpPut(SERVER_ADDRESS + "/available?flag=false");
                 AsyncHttpClient.getDefaultInstance().execute(put, new HttpConnectCallback() {
                     @Override
@@ -256,6 +278,7 @@ public class MainActivity extends AppCompatActivity {
                                 newImageExists = false;
                             else
                                 newImageExists = true;
+                            System.out.println("check available " + newImageExists);
                         }
                     }
                 });
@@ -318,9 +341,11 @@ public class MainActivity extends AppCompatActivity {
                     case MESSAGE_READ:
                         String arduinoMsg = msg.obj.toString(); // Read message from Arduino
 
-                        showAlert(arduinoMsg);
+                        //showAlert(arduinoMsg);
                         if(!arduinoMsg.isEmpty())
                             connectedThread.write("bluetooth ack");
+                        String currentDateandTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+                        showAlert("BlueTooth : Someone Arrived ! " + currentDateandTime );
                         break;
                 }
             }
@@ -537,20 +562,20 @@ public class MainActivity extends AppCompatActivity {
                 // for ActivityCompat#requestPermissions for more details.
                 return;
             }
-            Log.e("INFORM", "get location");
+            //Log.e("INFORM", "get location");
 
             Location location = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-            Log.e("INFORM", location + "--" + lastLocation);
+            //Log.e("INFORM", location + "--" + lastLocation);
             if(lastLocation == null && location != null){
-                Log.e("INFORM", "here");
+                //Log.e("INFORM", "here");
                 lastLocation = location;
                 storeDistanceOnServer();
             }
             else{
-                Log.e("INFORM", "here 1");
+                //Log.e("INFORM", "here 1");
                 if (location != null && !(location.getLatitude() == lastLocation.getLatitude() &&
                         location.getLongitude() == lastLocation.getLongitude())) {
-                    Log.e("INFORM", "here 2");
+                    //Log.e("INFORM", "here 2");
                     lastLocation = location;
                     //Log.e("latitude", location.getLatitude() + "");
                     //Log.e("longitude", location.getLongitude() + "");
@@ -579,9 +604,9 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
-    public void getTime() {
+    public void getImage() {
         // time
-        AsyncHttpGet get = new AsyncHttpGet(SERVER_ADDRESS + "/message");
+        AsyncHttpGet get = new AsyncHttpGet(SERVER_ADDRESS + "/bmage");
         AsyncHttpClient.getDefaultInstance().executeString(get, new AsyncHttpClient.StringCallback() {
             @Override
             public void onCompleted(Exception e, AsyncHttpResponse source, String result) {
@@ -589,17 +614,8 @@ public class MainActivity extends AppCompatActivity {
                     e.printStackTrace();
                     return;
                 }
-                System.out.println("I got a text: " + result);
-
-                    if(!result.equals(wifiData)){
-                        wifiData = result;
-                        newWifiData = true;
-                    }
-                    else{
-                        newWifiData = false;
-                    }
-
-
+                //System.out.println("I got a text: " + result);
+                wifiImage = result;
             }
         });
     }
