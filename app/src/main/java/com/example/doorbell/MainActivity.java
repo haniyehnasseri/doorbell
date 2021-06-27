@@ -71,8 +71,8 @@ public class MainActivity extends AppCompatActivity {
     private Handler wifiDataHandler = new Handler();
     private Timer wifiDataTimer = null;
 
-    public final long notify_interval = 10000;
-    public final long wifi_get_data_interval = 2000;
+    public final long notify_interval = 2000;
+    public final long wifi_get_data_interval = 4000;
 
 
     private String deviceName = null;
@@ -90,7 +90,9 @@ public class MainActivity extends AppCompatActivity {
 
     public Location boardLocation = new Location("board");
 
-    public boolean close;
+    public boolean close = true;
+
+    public float distance = -1;
 
 
     private final static int CONNECTING_STATUS = 1; // used in bluetooth handler to identify message status
@@ -101,7 +103,9 @@ public class MainActivity extends AppCompatActivity {
         mLocationListener = new LocationListener() {
             @Override
             public void onLocationChanged(@NonNull Location location) {
-                System.out.println(location.getLatitude() + ", " + location.getLongitude());
+                System.out.println(location.getLatitude() + "----->" + location.getLongitude());
+                lastLocation = location;
+                storeDistanceOnServer();
             }
 
             @Override
@@ -139,9 +143,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void storeDistanceOnServer() {
-        Log.e("INFORM", "store data func");
+        //Log.e("INFORM", "store data func");
         close = false;
-        float distance = boardLocation.distanceTo(lastLocation);
+        distance = boardLocation.distanceTo(lastLocation);
 
         if(distance <= 10.0){
             close = true;
@@ -182,26 +186,27 @@ public class MainActivity extends AppCompatActivity {
 
         initializeLocationService();
 
-        boardLocation.setLatitude(35.724902);
-        boardLocation.setLongitude(51.387620);
+        boardLocation.setLatitude(35.725289177);
+        boardLocation.setLongitude(51.489205847);
+
 
 
         ///
-        class TimerTaskToGetLocation extends TimerTask {
-            @Override
-            public void run() {
-
-                locationHandler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        getlocation();
-                    }
-                });
-
-            }
-        }
-        locationTimer = new Timer();
-        locationTimer.schedule(new TimerTaskToGetLocation(), 0, notify_interval);
+//        class TimerTaskToGetLocation extends TimerTask {
+//            @Override
+//            public void run() {
+//
+//                locationHandler.post(new Runnable() {
+//                    @Override
+//                    public void run() {
+//                        getlocation();
+//                    }
+//                });
+//
+//            }
+//        }
+//        locationTimer = new Timer();
+//        locationTimer.schedule(new TimerTaskToGetLocation(), 0, notify_interval);
         ///
 
         ///
@@ -209,7 +214,6 @@ public class MainActivity extends AppCompatActivity {
 
             boolean newImageExists = false;
             ImageView imageView = findViewById(R.id.imageView);
-            //ImageLoader imageLoader = ImageLoader.getInstance();
 
             /*public TimerTaskToGetWifiData() {
                 imageLoader.init(ImageLoaderConfiguration.createDefault(getApplicationContext()));
@@ -226,7 +230,6 @@ public class MainActivity extends AppCompatActivity {
                         checkNewImageExists();
 
                         if (newImageExists) {
-                            //unsetNewImageExists();
                             getImage();
                             System.out.println("before : " + newImageExists);
                             System.out.println(wifiImage);
@@ -241,7 +244,6 @@ public class MainActivity extends AppCompatActivity {
                                 System.out.println(wifiImage);
                                 System.out.println("after : " + newImageExists);
                             }
-                            //imageLoader.displayImage(SERVER_ADDRESS + "/image", imageView);
                         }
                     }
                 });
@@ -294,10 +296,8 @@ public class MainActivity extends AppCompatActivity {
         if (deviceName != null) {
             // Get the device address to make BT Connection
             deviceAddress = getIntent().getStringExtra("deviceAddress");
-            // Show progree and connection status
             toolbar.setSubtitle("Connecting to " + deviceName + "...");
-            //progressBar.setVisibility(View.VISIBLE);
-             buttonConnect.setEnabled(false);
+            buttonConnect.setEnabled(false);
 
             /*
             This is the most important piece of code. When "deviceName" is found
@@ -321,18 +321,14 @@ public class MainActivity extends AppCompatActivity {
                         switch (msg.arg1) {
                             case 1:
                                 toolbar.setSubtitle("Connected to " + deviceName);
-                                //Bar.setVisibility(View.GONE);
                                 buttonConnect.setEnabled(true);
-                                //buttonToggle.setEnabled(true);
                                 break;
                             case -1:
                                 toolbar.setSubtitle("Device fails to connect");
-                               // progressBar.setVisibility(View.GONE);
                                 buttonConnect.setEnabled(true);
                                 break;
                             case -2:
                                 toolbar.setSubtitle("mmSocket is null " + deviceName + "//" + deviceAddress);
-                               // progressBar.setVisibility(View.GONE);
                                  buttonConnect.setEnabled(true);
                                 break;
                         }
@@ -345,7 +341,7 @@ public class MainActivity extends AppCompatActivity {
                         if(!arduinoMsg.isEmpty())
                             connectedThread.write("bluetooth ack");
                         String currentDateandTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
-                        showAlert("BlueTooth : Someone Arrived ! " + currentDateandTime );
+                        showAlert(arduinoMsg + currentDateandTime );
                         break;
                 }
             }
@@ -369,8 +365,18 @@ public class MainActivity extends AppCompatActivity {
                 String message = "no message";
                 EditText editText = (EditText) findViewById(R.id.message);
                 message = editText.getText().toString();
-                if(close)
+
+                if(distance != -1){
+                    showAlert("distance : " + String.valueOf(distance));
+                }
+                if(lastLocation != null){
+                    showAlert("location : " + String.valueOf(lastLocation.getLatitude()) + " : " +
+                            String.valueOf(lastLocation.getLongitude()));
+                }
+
+                if(close){
                     connectedThread.write(message);
+                }
                 else{
                     storeLCDWifi(message);
                 }
@@ -395,7 +401,7 @@ public class MainActivity extends AppCompatActivity {
 
         tryEnableLocation();
 
-        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, (float) 1, mLocationListener);
+        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, (float) 0.1, mLocationListener);
     }
 
     /* ============================ Thread to Create Bluetooth Connection =================================== */
@@ -417,8 +423,6 @@ public class MainActivity extends AppCompatActivity {
                 You should try using other methods i.e. :
                 tmp = device.createRfcommSocketToServiceRecord(MY_UUID);
                  */
-                //tmp = bluetoothDevice.createInsecureRfcommSocketToServiceRecord(uuid);
-
                 tmp = bluetoothDevice.createInsecureRfcommSocketToServiceRecord(UUID.fromString("00001101-0000-1000-8000-00805F9B34FB"));
 
             } catch (IOException e) {
@@ -550,40 +554,35 @@ public class MainActivity extends AppCompatActivity {
         startActivity(a);
     }
 
-    public void getlocation() {
-        if (mLocationManager != null) {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                // TODO: Consider calling
-                //    ActivityCompat#requestPermissions
-                // here to request the missing permissions, and then overriding
-                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                //                                          int[] grantResults)
-                // to handle the case where the user grants the permission. See the documentation
-                // for ActivityCompat#requestPermissions for more details.
-                return;
-            }
-            //Log.e("INFORM", "get location");
-
-            Location location = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-            //Log.e("INFORM", location + "--" + lastLocation);
-            if(lastLocation == null && location != null){
-                //Log.e("INFORM", "here");
-                lastLocation = location;
-                storeDistanceOnServer();
-            }
-            else{
-                //Log.e("INFORM", "here 1");
-                if (location != null && !(location.getLatitude() == lastLocation.getLatitude() &&
-                        location.getLongitude() == lastLocation.getLongitude())) {
-                    //Log.e("INFORM", "here 2");
-                    lastLocation = location;
-                    //Log.e("latitude", location.getLatitude() + "");
-                    //Log.e("longitude", location.getLongitude() + "");
-                    storeDistanceOnServer();
-                }
-            }
-        }
-    }
+//    public void getlocation() {
+//        if (mLocationManager != null) {
+//            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+//                // 
+//                //    ActivityCompat#requestPermissions
+//                // here to request the missing permissions, and then overriding
+//                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+//                //                                          int[] grantResults)
+//                // to handle the case where the user grants the permission. See the documentation
+//                // for ActivityCompat#requestPermissions for more details.
+//                return;
+//            }
+//
+//            Location location = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+//            if(lastLocation == null && location != null){
+//                //Log.e("INFORM", "here");
+//                lastLocation = location;
+//                storeDistanceOnServer();
+//            }
+//            else{
+//
+//                if (location != null && !(location.getLatitude() == lastLocation.getLatitude() &&
+//                        location.getLongitude() == lastLocation.getLongitude())) {
+//                    lastLocation = location;
+//                    storeDistanceOnServer();
+//                }
+//            }
+//        }
+//    }
 
     public void showAlert(String message){
         new AlertDialog.Builder(MainActivity.this)
@@ -614,7 +613,6 @@ public class MainActivity extends AppCompatActivity {
                     e.printStackTrace();
                     return;
                 }
-                //System.out.println("I got a text: " + result);
                 wifiImage = result;
             }
         });
