@@ -186,8 +186,8 @@ public class MainActivity extends AppCompatActivity {
 
         initializeLocationService();
 
-        boardLocation.setLatitude(35.725289177);
-        boardLocation.setLongitude(51.489205847);
+        boardLocation.setLatitude(34.6621988402);
+        boardLocation.setLongitude(50.8630522201);
 
 
 
