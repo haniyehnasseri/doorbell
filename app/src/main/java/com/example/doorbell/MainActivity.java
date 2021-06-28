@@ -98,6 +98,8 @@ public class MainActivity extends AppCompatActivity {
     private final static int CONNECTING_STATUS = 1; // used in bluetooth handler to identify message status
     private final static int MESSAGE_READ = 2; // used in bluetooth handler to identify message update
 
+    public String whichButton = "";
+
     public MainActivity() {
 
         mLocationListener = new LocationListener() {
@@ -105,7 +107,7 @@ public class MainActivity extends AppCompatActivity {
             public void onLocationChanged(@NonNull Location location) {
                 System.out.println(location.getLatitude() + "----->" + location.getLongitude());
                 lastLocation = location;
-                storeDistanceOnServer();
+                //storeDistanceOnServer();
             }
 
             @Override
@@ -362,17 +364,27 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
 
-                String message = "no message";
-                EditText editText = (EditText) findViewById(R.id.message);
-                message = editText.getText().toString();
 
-                if(distance != -1){
-                    showAlert("distance : " + String.valueOf(distance));
+                //String message = "no message";
+                EditText editText = (EditText) findViewById(R.id.message);
+                String message = editText.getText().toString();
+
+//                if(distance != -1){
+//                    showAlert("distance : " + String.valueOf(distance));
+//                }
+//                if(lastLocation != null){
+//                    showAlert("location : " + String.valueOf(lastLocation.getLatitude()) + " : " +
+//                            String.valueOf(lastLocation.getLongitude()));
+//                }
+
+                if(whichButton.equals("bluetooth")){
+                    close = true;
                 }
-                if(lastLocation != null){
-                    showAlert("location : " + String.valueOf(lastLocation.getLatitude()) + " : " +
-                            String.valueOf(lastLocation.getLongitude()));
+                else if(whichButton.equals("wifi")){
+                    close = false;
                 }
+
+                showAlert(whichButton + "-->" + close);
 
                 if(close){
                     connectedThread.write(message);
@@ -620,6 +632,48 @@ public class MainActivity extends AppCompatActivity {
 
     public void storeLCDWifi(String lcdMessage){
         AsyncHttpPut put = new AsyncHttpPut(SERVER_ADDRESS + "/message?text=" + lcdMessage);
+        AsyncHttpClient.getDefaultInstance().execute(put, new HttpConnectCallback() {
+            @Override
+            public void onConnectCompleted(Exception ex, AsyncHttpResponse response) {
+                if (ex != null) {
+                    ex.printStackTrace();
+                    return;
+                }
+                System.out.println("Server says: " + response.code());
+                response.setDataCallback(new DataCallback() {
+                    @Override
+                    public void onDataAvailable(DataEmitter emitter, ByteBufferList bb) {
+                        bb.recycle();
+                    }
+                });
+            }
+        });
+    }
+
+    public void bluetoothClick(View v){
+        whichButton = "bluetooth";
+        AsyncHttpPut put = new AsyncHttpPut(SERVER_ADDRESS + "/location?close=" + "true");
+        AsyncHttpClient.getDefaultInstance().execute(put, new HttpConnectCallback() {
+            @Override
+            public void onConnectCompleted(Exception ex, AsyncHttpResponse response) {
+                if (ex != null) {
+                    ex.printStackTrace();
+                    return;
+                }
+                System.out.println("Server says: " + response.code());
+                response.setDataCallback(new DataCallback() {
+                    @Override
+                    public void onDataAvailable(DataEmitter emitter, ByteBufferList bb) {
+                        bb.recycle();
+                    }
+                });
+            }
+        });
+    }
+
+    public void wifiClick(View v){
+        whichButton = "wifi";
+        AsyncHttpPut put = new AsyncHttpPut(SERVER_ADDRESS + "/location?close=" + "false");
         AsyncHttpClient.getDefaultInstance().execute(put, new HttpConnectCallback() {
             @Override
             public void onConnectCompleted(Exception ex, AsyncHttpResponse response) {
