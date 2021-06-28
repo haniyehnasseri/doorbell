@@ -145,7 +145,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void storeDistanceOnServer() {
-        //Log.e("INFORM", "store data func");
+
         close = false;
         distance = boardLocation.distanceTo(lastLocation);
 
@@ -191,25 +191,12 @@ public class MainActivity extends AppCompatActivity {
         boardLocation.setLatitude(35.725289177);
         boardLocation.setLongitude(51.489205847);
 
+        // new
+        initializeToggleButton();
 
 
-        ///
-//        class TimerTaskToGetLocation extends TimerTask {
-//            @Override
-//            public void run() {
-//
-//                locationHandler.post(new Runnable() {
-//                    @Override
-//                    public void run() {
-//                        getlocation();
-//                    }
-//                });
-//
-//            }
-//        }
-//        locationTimer = new Timer();
-//        locationTimer.schedule(new TimerTaskToGetLocation(), 0, notify_interval);
-        ///
+
+
 
         ///
         class TimerTaskToGetWifiData extends TimerTask {
@@ -339,7 +326,7 @@ public class MainActivity extends AppCompatActivity {
                     case MESSAGE_READ:
                         String arduinoMsg = msg.obj.toString(); // Read message from Arduino
 
-                        //showAlert(arduinoMsg);
+
                         if(!arduinoMsg.isEmpty())
                             connectedThread.write("bluetooth ack");
                         String currentDateandTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
@@ -365,7 +352,6 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
 
 
-                //String message = "no message";
                 EditText editText = (EditText) findViewById(R.id.message);
                 String message = editText.getText().toString();
 
@@ -377,14 +363,13 @@ public class MainActivity extends AppCompatActivity {
 //                            String.valueOf(lastLocation.getLongitude()));
 //                }
 
-                if(whichButton.equals("bluetooth")){
+                if(whichButton.equals("Bluetooth")){
                     close = true;
                 }
-                else if(whichButton.equals("wifi")){
+                else if(whichButton.equals("Wifi")){
                     close = false;
                 }
 
-                showAlert(whichButton + "-->" + close);
 
                 if(close){
                     connectedThread.write(message);
@@ -566,35 +551,7 @@ public class MainActivity extends AppCompatActivity {
         startActivity(a);
     }
 
-//    public void getlocation() {
-//        if (mLocationManager != null) {
-//            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-//                // 
-//                //    ActivityCompat#requestPermissions
-//                // here to request the missing permissions, and then overriding
-//                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-//                //                                          int[] grantResults)
-//                // to handle the case where the user grants the permission. See the documentation
-//                // for ActivityCompat#requestPermissions for more details.
-//                return;
-//            }
-//
-//            Location location = mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
-//            if(lastLocation == null && location != null){
-//                //Log.e("INFORM", "here");
-//                lastLocation = location;
-//                storeDistanceOnServer();
-//            }
-//            else{
-//
-//                if (location != null && !(location.getLatitude() == lastLocation.getLatitude() &&
-//                        location.getLongitude() == lastLocation.getLongitude())) {
-//                    lastLocation = location;
-//                    storeDistanceOnServer();
-//                }
-//            }
-//        }
-//    }
+
 
     public void showAlert(String message){
         new AlertDialog.Builder(MainActivity.this)
@@ -650,9 +607,26 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    public void bluetoothClick(View v){
-        whichButton = "bluetooth";
-        AsyncHttpPut put = new AsyncHttpPut(SERVER_ADDRESS + "/location?close=" + "true");
+    // def : wifi
+    public void toggleCloseClick(View v){
+        Button closeButton = (Button) findViewById(R.id.closeButton);
+        String buttonText = (String) closeButton.getText();
+        if(buttonText.equals("Bluetooth")){
+            closeButton.setText("Wifi");
+            whichButton = "Bluetooth";
+            setClose("true");
+        }
+        else if(buttonText.equals("Wifi")){
+            closeButton.setText("Bluetooth");
+            whichButton = "Wifi";
+            setClose("false");
+        }
+    }
+
+
+
+    public void setClose(String close){
+        AsyncHttpPut put = new AsyncHttpPut(SERVER_ADDRESS + "/location?close=" + close);
         AsyncHttpClient.getDefaultInstance().execute(put, new HttpConnectCallback() {
             @Override
             public void onConnectCompleted(Exception ex, AsyncHttpResponse response) {
@@ -671,24 +645,8 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    public void wifiClick(View v){
-        whichButton = "wifi";
-        AsyncHttpPut put = new AsyncHttpPut(SERVER_ADDRESS + "/location?close=" + "false");
-        AsyncHttpClient.getDefaultInstance().execute(put, new HttpConnectCallback() {
-            @Override
-            public void onConnectCompleted(Exception ex, AsyncHttpResponse response) {
-                if (ex != null) {
-                    ex.printStackTrace();
-                    return;
-                }
-                System.out.println("Server says: " + response.code());
-                response.setDataCallback(new DataCallback() {
-                    @Override
-                    public void onDataAvailable(DataEmitter emitter, ByteBufferList bb) {
-                        bb.recycle();
-                    }
-                });
-            }
-        });
+    public  void initializeToggleButton(){
+        whichButton = "Wifi";
+        setClose("false");
     }
 }
