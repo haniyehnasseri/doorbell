@@ -327,23 +327,44 @@ public class MainActivity extends AppCompatActivity {
                     case MESSAGE_READ:
                         String arduinoMsg = msg.obj.toString(); // Read message from Arduino
 
-                        if(!arduinoMsg.isEmpty())
-                            connectedThread.write("bluetooth ack");
+//                        if(!arduinoMsg.isEmpty())
+//                            connectedThread.write("bluetooth ack");
 
                         if(arduinoMsg.contains("start")){
-                            bluetoothImage = "";
+                            //arduinoMsg.lastIndexOf("start");
+                            if(arduinoMsg.endsWith("start")){
+                                bluetoothImage = "";
+                            }
+                            else {
+                                int myIndex  = arduinoMsg.indexOf("start") + "start".length();
+                                bluetoothImage = arduinoMsg.substring(myIndex);
+                            }
+                            connectedThread.write("start ack");
+                            showAlert("start here");
                         }
                         else if(arduinoMsg.contains("end")){
                             ImageView imageView = findViewById(R.id.imageView);
-                            String base64String = bluetoothImage.substring(2);
-                            byte[] decodedString = Base64.decode(base64String, Base64.DEFAULT);
-                            Bitmap decodedByte = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
-                            imageView.setImageBitmap(decodedByte);
-                            String currentDateandTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
-                            showAlert("Bluetooth : Someone Arrived ! " +currentDateandTime );
+                            try{
+                                String base64String = bluetoothImage.substring(2);
+                                byte[] decodedString = Base64.decode(base64String, Base64.DEFAULT);
+                                Bitmap decodedByte = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
+                                imageView.setImageBitmap(decodedByte);
+                                String currentDateandTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+                                showAlert("Bluetooth : Someone Arrived ! " +currentDateandTime );
+                                connectedThread.write("success");
+                                showAlert(bluetoothImage);
+                            } catch (Exception e) {
+                                //e.printStackTrace();
+                                connectedThread.write("unsuccess");
+                                showAlert("unsuccess!");
+                                showAlert(bluetoothImage);
+                            }
+
                         }
                         else{
+
                             bluetoothImage += arduinoMsg;
+                            showAlert("newPart");
                         }
                         break;
                 }
