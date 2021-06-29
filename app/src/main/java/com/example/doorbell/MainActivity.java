@@ -84,6 +84,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     public String wifiImage = "";
+    public String bluetoothImage = "";
     public boolean newWifiData = false;
 
     public Location lastLocation = null;
@@ -326,11 +327,24 @@ public class MainActivity extends AppCompatActivity {
                     case MESSAGE_READ:
                         String arduinoMsg = msg.obj.toString(); // Read message from Arduino
 
-
                         if(!arduinoMsg.isEmpty())
                             connectedThread.write("bluetooth ack");
-                        String currentDateandTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
-                        showAlert(arduinoMsg + currentDateandTime );
+
+                        if(arduinoMsg.contains("start")){
+                            bluetoothImage = "";
+                        }
+                        else if(arduinoMsg.contains("end")){
+                            ImageView imageView = findViewById(R.id.imageView);
+                            String base64String = bluetoothImage.substring(2);
+                            byte[] decodedString = Base64.decode(base64String, Base64.DEFAULT);
+                            Bitmap decodedByte = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
+                            imageView.setImageBitmap(decodedByte);
+                            String currentDateandTime = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+                            showAlert("Bluetooth : Someone Arrived ! " +currentDateandTime );
+                        }
+                        else{
+                            bluetoothImage += arduinoMsg;
+                        }
                         break;
                 }
             }
