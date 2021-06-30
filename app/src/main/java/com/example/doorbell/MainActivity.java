@@ -364,7 +364,7 @@ public class MainActivity extends AppCompatActivity {
                         else{
 
                             bluetoothImage += arduinoMsg;
-                            showAlert("newPart");
+                            //showAlert("newPart");
                         }
                         break;
                 }
